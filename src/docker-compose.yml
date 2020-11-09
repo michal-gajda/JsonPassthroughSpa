@@ -1,0 +1,54 @@
+version: "3.1"
+networks:
+  localdev:
+volumes:
+  mssqldata:
+    external: true
+  seqdata:
+    external: true
+services:
+  web:
+    build: .
+    depends_on:
+      - mssqlexpress
+      - seq-input-gelf
+    environment:
+      CONFIG_CONNECTIONSTRINGS__DEFAULTCONNECTION: "Server=mssqlexpress;Database=JsonPassthroughSpa;User Id=sa;Password=P@ssw0rd;"
+      GRAYLOG_ADDRESS: "seq-input-gelf"
+    ports:
+      - "5000:80"
+    networks:
+      - localdev
+    restart: unless-stopped
+  mssqlexpress:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "P@ssw0rd"
+      MSSQL_PID: "Express"
+    networks:
+      - localdev
+    volumes:
+      - mssqldata:/var/opt/mssql
+    restart: unless-stopped
+  seq-input-gelf:
+    image: datalust/seq-input-gelf:latest
+    depends_on:
+      - seq
+    environment:
+      GELF_ENABLE_DIAGNOSTICS: "True"
+      SEQ_ADDRESS: "http://seq:5341"
+    networks:
+      - localdev
+    restart: unless-stopped
+  seq:
+    image: datalust/seq:latest
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5341:80"
+    networks:
+      - localdev
+    volumes:
+      - seqdata:/data
+    restart: unless-stopped
